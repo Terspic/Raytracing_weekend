@@ -1,8 +1,9 @@
 use image::{ImageBuffer, RgbaImage};
-use rayon::iter::IntoParallelIterator;
-use rayon::iter::ParallelIterator;
-use std::sync::Arc;
-use std::time::Instant;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::{
+    sync::Arc,
+    time::Instant
+};
 
 use raytracing_weekend::*;
 
@@ -24,7 +25,7 @@ pub fn random_scene() -> World {
         for b in -11..11 {
             let (a, b) = (a as f64, b as f64);
             let choose_mat: f64 = random();
-            let center = vec3(a + 0.9 * random::<f64>(), 0.2, b + 0.9 * random::<f64>());
+            let center = vec3(a + 0.9 * random(), 0.2, b + 0.9 * random());
 
             if (center - vec3(4.0, 0.2, 0.0)).norm() > 0.9 {
                 if choose_mat < 0.8 {
@@ -37,7 +38,7 @@ pub fn random_scene() -> World {
                     w.push(Box::new(Sphere::new(
                         center,
                         0.2,
-                        Arc::new(Metal::new(Color::random(), random::<f64>() * 0.5)),
+                        Arc::new(Metal::new(Color::random(), 0.5 * random())),
                     )));
                 } else {
                     w.push(Box::new(Sphere::new(
@@ -99,6 +100,7 @@ fn main() {
 
     // scene
     let world = random_scene();
+
     println!("Rendering {} objects", world.len());
 
     // meta data
@@ -110,8 +112,8 @@ fn main() {
         let mut line: Vec<Color> = (0..WIDTH).into_par_iter().map(|x|{
             let mut color = Vec3::ZERO;
             for _ in 0..SAMPLE_PER_PIXEL {
-                let u = (x as f64 + random::<f64>()) / ((WIDTH - 1) as f64);
-                let v = (y as f64 + random::<f64>()) / ((HEIGHT - 1) as f64);
+                let u = (x as f64 + random()) / ((WIDTH - 1) as f64);
+                let v = (y as f64 + random()) / ((HEIGHT - 1) as f64);
     
                 let r = camera.get_ray(u, v);
                 color += ray_color(&r, &world, MAX_DEPTH);
@@ -123,13 +125,13 @@ fn main() {
         buffer.append(&mut line);
     }
 
-    // vopy buffer to image
+    let dt = clock.elapsed().as_secs_f32();
+    println!("Render time : {}s", dt);
+
+    // copy buffer to image
     for (x, y, pixel) in img.enumerate_pixels_mut() {
         *pixel = image::Rgba(buffer[(y * WIDTH + x) as usize].into());
     }
-
-    let dt = clock.elapsed().as_secs_f32();
-    println!("Render time : {}s", dt);
 
     // save img
     match image::imageops::flip_vertical(&img).save("out.png") {

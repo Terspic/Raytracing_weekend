@@ -75,7 +75,7 @@ impl Scatter for Dielectric {
         let cos_theta = -unit_dir.dot(rec.normal).min(1.0);
         let sin_theta = (1.0 - cos_theta.powi(2)).sqrt();
 
-        let will_reflect = random::<f64>() < Self::reflectance(cos_theta, eta1 / self.eta);
+        let will_reflect = random() < Self::reflectance(cos_theta, eta1 / self.eta);
 
         let direction = if (eta1 / self.eta) * sin_theta > 1.0 || will_reflect {
             unit_dir.reflect(rec.normal)

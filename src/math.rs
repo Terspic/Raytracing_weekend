@@ -1,5 +1,7 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Range, Sub, SubAssign};
-use rand::Rng;
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use crate::random;
+
+use super::random_range;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Vec3 {
@@ -79,27 +81,22 @@ impl Vec3 {
         perp + parallel
     }
 
-    pub fn random(r: Range<f64>) -> Self {
-        let mut rng = rand::thread_rng();
+    pub fn random(min: f64, max: f64) -> Self {
         Self {
-            x: rng.gen_range(r.clone()),
-            y: rng.gen_range(r.clone()),
-            z: rng.gen_range(r.clone()),
+            x: random_range(min , max),
+            y: random_range(min , max),
+            z: random_range(min , max),
         }
     }
 
     pub fn random_unit_sphere() -> Self {
-        Self::random(-1.0..1.0).normalize()
+        Self::random(-1.0, 1.0).normalize()
     }
 
     pub fn random_unit_disk() -> Self {
-        let mut rng = rand::thread_rng();
-        loop {
-            let v = vec3(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0), 0.0);
-            if v.norm() <= 1.0 {
-                return v
-            }
-        }
+        let r = random();
+        let theta = random_range(0.0, std::f64::consts::PI * 2.0);
+        r * vec3(theta.cos(), theta.sin(), 0.0)
     }
 
     pub fn is_near(&self, v: Self) -> bool {

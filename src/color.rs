@@ -1,9 +1,4 @@
-use core::f64;
-use std::u64;
-
-use rand::Rng;
-
-use super::Vec3;
+use super::{Vec3, random};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
@@ -32,11 +27,10 @@ impl Color {
     }
 
     pub fn random() -> Self {
-        let mut rng = rand::thread_rng();
         Self {
-            r: rng.gen_range(0..255),
-            g: rng.gen_range(0..255),
-            b: rng.gen_range(0..255),
+            r: (random().powi(2) * 255.0) as u8,
+            g: (random().powi(2) * 255.0) as u8,
+            b: (random().powi(2) * 255.0) as u8,
             a: 255
         }
     }
