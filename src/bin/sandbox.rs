@@ -1,74 +1,10 @@
 use image::{ImageBuffer, RgbaImage};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
-    sync::Arc,
     time::Instant
 };
 
 use raytracing_weekend::*;
-
-const WIDTH: u32 = 1200;
-const HEIGHT: u32 = 800;
-const ASPECT_RATIO: f64 = WIDTH as f64 / HEIGHT as f64;
-const SAMPLE_PER_PIXEL: u64 = 500;
-const MAX_DEPTH: u64 = 50;
-
-pub fn random_scene() -> World {
-    let mut w = World::with_capacity(500);
-    w.push(Box::new(Sphere::new(
-        vec3(0.0, -1000.0, 0.0),
-        1000.0,
-        Arc::new(Lambertian::new(Color::GREY)),
-    )));
-
-    for a in -11..11 {
-        for b in -11..11 {
-            let (a, b) = (a as f64, b as f64);
-            let choose_mat: f64 = random();
-            let center = vec3(a + 0.9 * random(), 0.2, b + 0.9 * random());
-
-            if (center - vec3(4.0, 0.2, 0.0)).norm() > 0.9 {
-                if choose_mat < 0.8 {
-                    w.push(Box::new(Sphere::new(
-                        center,
-                        0.2,
-                        Arc::new(Lambertian::new(Color::random())),
-                    )));
-                } else if choose_mat < 0.95 {
-                    w.push(Box::new(Sphere::new(
-                        center,
-                        0.2,
-                        Arc::new(Metal::new(Color::random(), 0.5 * random())),
-                    )));
-                } else {
-                    w.push(Box::new(Sphere::new(
-                        center,
-                        0.2,
-                        Arc::new(Dielectric::new(1.5)),
-                    )));
-                }
-            }
-        }
-    }
-
-    w.push(Box::new(Sphere::new(
-        vec3(0.0, 1.0, 0.0),
-        1.0,
-        Arc::new(Dielectric::new(1.5)),
-    )));
-    w.push(Box::new(Sphere::new(
-        vec3(-4.0, 1.0, 0.0),
-        1.0,
-        Arc::new(Lambertian::new(Color::new(104, 51, 26, 255))),
-    )));
-    w.push(Box::new(Sphere::new(
-        vec3(4.0, 1.0, 0.0),
-        1.0,
-        Arc::new(Metal::new(Color::new(179, 153, 128, 255), 0.0)),
-    )));
-
-    w
-}
 
 pub fn ray_color(r: &Ray, world: &World, depth: u64) -> Vec3 {
     if depth <= 0 {
@@ -90,16 +26,14 @@ pub fn ray_color(r: &Ray, world: &World, depth: u64) -> Vec3 {
 }
 
 fn main() {
-    // image buffer
-    let mut img: RgbaImage = ImageBuffer::new(WIDTH, HEIGHT);
+    // config 
+    let config = Config::load(std::path::Path::new("config.txt"));
 
-    // camera
-    let eye = vec3(13.0, 2.0, 3.0);
-    let lookat = vec3(0.0, 0.0, 0.0);
-    let camera = Camera::new(20.0, eye, lookat, ASPECT_RATIO, 0.1, 10.0);
+    // image buffer
+    let mut img: RgbaImage = ImageBuffer::new(config.width, config.height);
 
     // scene
-    let world = random_scene();
+    let (world, camera) = scenes::spheres(config.aspect_ratio);
 
     println!("Rendering {} objects", world.len());
 
@@ -107,19 +41,19 @@ fn main() {
     let clock = Instant::now();
 
     // render stage
-    let mut buffer: Vec<Color> = Vec::with_capacity((HEIGHT * WIDTH) as usize);
-    for y in 0..HEIGHT {
-        let mut line: Vec<Color> = (0..WIDTH).into_par_iter().map(|x|{
+    let mut buffer: Vec<Color> = Vec::with_capacity((config.width * config.height) as usize);
+    for y in 0..config.height {
+        let mut line: Vec<Color> = (0..config.width).into_par_iter().map(|x|{
             let mut color = Vec3::ZERO;
-            for _ in 0..SAMPLE_PER_PIXEL {
-                let u = (x as f64 + random()) / ((WIDTH - 1) as f64);
-                let v = (y as f64 + random()) / ((HEIGHT - 1) as f64);
+            for _ in 0..config.samples {
+                let u = (x as f64 + random()) / ((config.width - 1) as f64);
+                let v = (y as f64 + random()) / ((config.height - 1) as f64);
     
                 let r = camera.get_ray(u, v);
-                color += ray_color(&r, &world, MAX_DEPTH);
+                color += ray_color(&r, &world, config.depth as u64);
             }
             
-            Color::from_vec(color, SAMPLE_PER_PIXEL)
+            Color::from_vec(color, config.samples as u64)
         }).collect();
 
         buffer.append(&mut line);
@@ -130,7 +64,7 @@ fn main() {
 
     // copy buffer to image
     for (x, y, pixel) in img.enumerate_pixels_mut() {
-        *pixel = image::Rgba(buffer[(y * WIDTH + x) as usize].into());
+        *pixel = image::Rgba(buffer[(y * config.width + x) as usize].into());
     }
 
     // save img

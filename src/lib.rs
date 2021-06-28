@@ -3,12 +3,15 @@ pub mod color;
 pub mod objects;
 pub mod camera;
 pub mod material;
+pub mod scenes;
+pub mod config;
 
 pub use math::*;
 pub use color::*;
 pub use objects::*;
 pub use camera::*;
 pub use material::*;
+pub use config::*;
 
 pub const PI: f64 = std::f64::consts::PI;
 

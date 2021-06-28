@@ -1,7 +1,5 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
-use crate::random;
-
-use super::random_range;
+use super::{random, random_range};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Vec3 {
@@ -220,11 +218,12 @@ pub type Point3 = Vec3;
 pub struct Ray {
     pub origin: Point3,
     pub dir: Vec3,
+    pub time: f64,
 }
 
 impl Ray {
-    pub fn new(o: Point3, d: Vec3) -> Self {
-        Self { origin: o, dir: d }
+    pub fn new(o: Point3, d: Vec3, t: f64) -> Self {
+        Self { origin: o, dir: d, time: t, }
     }
 
     pub fn at(&self, t: f64) -> Point3 {
@@ -232,8 +231,8 @@ impl Ray {
     }
 }
 
-pub fn ray(origin: Point3, dir: Vec3) -> Ray {
-    Ray { origin, dir }
+pub fn ray(origin: Point3, dir: Vec3, time: f64) -> Ray {
+    Ray { origin, dir, time }
 }
 
 pub fn is_campled(v: f64, min: f64, max: f64) -> bool {

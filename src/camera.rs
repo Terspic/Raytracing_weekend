@@ -1,3 +1,5 @@
+use crate::random_range;
+
 use super::{radians, ray, vec3, Point3, Ray, Vec3};
 
 #[derive(Debug, Clone, Copy)]
@@ -10,6 +12,8 @@ pub struct Camera {
     v: Vec3,
     w: Vec3,
     lens_radius: f64,
+    t1: f64, // open / close shutter
+    t2: f64,
 }
 
 impl Camera {
@@ -20,6 +24,8 @@ impl Camera {
         aspect_ratio: f64,
         aperture: f64,
         focus_dist: f64,
+        t1: f64,
+        t2: f64
     ) -> Self {
         let h = (radians(fov) * 0.5).tan();
         let viewport = (2.0 * h * aspect_ratio, 2.0 * h);
@@ -41,6 +47,8 @@ impl Camera {
             v,
             w,
             lens_radius: aperture / 2.0,
+            t1,
+            t2
         }
     }
 
@@ -51,6 +59,7 @@ impl Camera {
         ray(
             self.eye + offset,
             self.lower_left_corner + s * self.horizontal + t * self.vertical - self.eye - offset,
+            random_range(self.t1, self.t2)
         )
     }
 }

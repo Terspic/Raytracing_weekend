@@ -15,12 +15,12 @@ impl Lambertian {
 }
 
 impl Scatter for Lambertian {
-    fn scatter(&self, _r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+    fn scatter(&self, r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let mut scatter_dir = rec.normal + Vec3::random_unit_sphere();
         if scatter_dir.is_near(Vec3::ZERO) {
             scatter_dir = rec.normal;
         }
-        let scattered = ray(rec.point, scatter_dir);
+        let scattered = ray(rec.point, scatter_dir, r.time);
 
         Some((self.albedo, scattered))
     }
@@ -43,6 +43,7 @@ impl Scatter for Metal {
         let scattered = ray(
             rec.point,
             reflected + self.fuzz * Vec3::random_unit_sphere(),
+            r.time
         );
 
         if scattered.dir.dot(rec.normal) > 0.0 {
@@ -83,7 +84,7 @@ impl Scatter for Dielectric {
             unit_dir.refract(rec.normal, eta1, self.eta)
         };
 
-        let scattered = ray(rec.point, direction);
+        let scattered = ray(rec.point, direction, r.time);
 
         Some((Color::WHITE, scattered))
     }
