@@ -37,7 +37,7 @@ impl Config {
 
         for line in lines {
             // empty line 
-            if line == "" {
+            if line.trim() == "" {
                 continue;
             }
 

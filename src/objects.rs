@@ -1,9 +1,5 @@
+use super::{is_campled, vec3, Point3, Ray, Scatter, Vec3};
 use std::sync::Arc;
-
-use super::{
-    Point3, Vec3, Ray, Scatter,
-    vec3, is_campled
-};
 
 #[derive(Clone)]
 pub struct HitRecord {
@@ -11,7 +7,7 @@ pub struct HitRecord {
     pub normal: Vec3,
     pub t: f64,
     pub front_face: bool,
-    pub mat: Arc<dyn Scatter>
+    pub mat: Arc<dyn Scatter>,
 }
 
 impl HitRecord {
@@ -27,6 +23,51 @@ impl HitRecord {
 
 pub trait Hit: Send + Sync {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
+    fn bounding_box(&self, t1: f64, t2: f64) -> Option<AABB>;
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AABB {
+    min: Point3,
+    max: Point3,
+}
+
+impl AABB {
+    pub fn new(min: Point3, max: Point3) -> Self {
+        Self { min, max }
+    }
+
+    pub fn hit(&self, r: &Ray, mut tmin: f64, mut tmax: f64) -> bool {
+        let inv_d = 1.0 / r.dir;
+        let t1 = (self.min - r.origin) * inv_d;
+        let t2 = (self.max - r.origin) * inv_d;
+
+        for i in 0..3 {
+            tmin = t1[i].min(t2[i]).max(tmin);
+            tmax = t1[i].max(t2[i]).min(tmax);
+
+            if tmax <= tmin {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub fn surrounding_box(b0: &Self, b1: &Self) -> Self {
+        let min = vec3(
+            b0.min.x.min(b1.min.x),
+            b0.min.y.min(b1.min.y),
+            b0.min.z.min(b1.min.z),
+        );
+        let max = vec3(
+            b0.max.x.max(b1.max.x),
+            b0.max.y.max(b1.max.y),
+            b0.max.z.max(b1.max.z),
+        );
+
+        Self::new(min, max)
+    }
 }
 
 pub type World = Vec<Box<dyn Hit>>;
@@ -45,6 +86,22 @@ impl Hit for World {
 
         tmp_rec
     }
+
+    fn bounding_box(&self, t1: f64, t2: f64) -> Option<AABB> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let mut bbox = AABB::new(Vec3::ZERO, Vec3::ZERO);
+        for object in self {
+            match object.bounding_box(t1, t2) {
+                Some(b) => bbox = AABB::surrounding_box(&b, &bbox),
+                None => return None,
+            }
+        }
+
+        Some(bbox)
+    }
 }
 
 #[derive(Clone)]
@@ -56,7 +113,11 @@ pub struct Sphere {
 
 impl Sphere {
     pub fn new(center: Point3, radius: f64, mat: Arc<dyn Scatter>) -> Self {
-        Self { center, radius, mat }
+        Self {
+            center,
+            radius,
+            mat,
+        }
     }
 }
 
@@ -86,11 +147,18 @@ impl Hit for Sphere {
             normal: vec3(0.0, 0.0, 0.0),
             t: root,
             front_face: false,
-            mat: self.mat.clone()
+            mat: self.mat.clone(),
         };
 
         rec.set_face_normal(&r, (r.at(root) - self.center) / self.radius);
         Some(rec)
+    }
+
+    fn bounding_box(&self, _: f64, _: f64) -> Option<AABB> {
+        Some(AABB::new(
+            self.center - self.radius * Vec3::ONE,
+            self.center + self.radius * Vec3::ONE,
+        ))
     }
 }
 
@@ -100,12 +168,24 @@ pub struct MovingSphere {
     pub mat: Arc<dyn Scatter>,
     centers: (Point3, Point3),
     t1: f64,
-    t2: f64
+    t2: f64,
 }
 
 impl MovingSphere {
-    pub fn new(center: (Point3, Point3), radius: f64, t1: f64, t2: f64, mat: Arc<dyn Scatter>) -> Self {
-        Self { centers: center, radius, mat, t1, t2 }
+    pub fn new(
+        center: (Point3, Point3),
+        radius: f64,
+        t1: f64,
+        t2: f64,
+        mat: Arc<dyn Scatter>,
+    ) -> Self {
+        Self {
+            centers: center,
+            radius,
+            mat,
+            t1,
+            t2,
+        }
     }
 
     pub fn center(&self, t: f64) -> Point3 {
@@ -139,10 +219,23 @@ impl Hit for MovingSphere {
             normal: vec3(0.0, 0.0, 0.0),
             t: root,
             front_face: false,
-            mat: self.mat.clone()
+            mat: self.mat.clone(),
         };
 
         rec.set_face_normal(&r, (r.at(root) - self.center(r.time)) / self.radius);
         Some(rec)
+    }
+
+    fn bounding_box(&self, t1: f64, t2: f64) -> Option<AABB> {
+        Some(AABB::surrounding_box(
+            &AABB::new(
+                self.center(t1) - self.radius * Vec3::ONE,
+                self.center(t1) - self.radius * Vec3::ONE,
+            ),
+            &AABB::new(
+                self.center(t2) - self.radius * Vec3::ONE,
+                self.center(t2) - self.radius * Vec3::ONE,
+            ),
+        ))
     }
 }

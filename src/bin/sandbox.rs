@@ -34,11 +34,10 @@ fn main() {
 
     // scene
     let (world, camera) = scenes::spheres(config.aspect_ratio);
-
-    println!("Rendering {} objects", world.len());
-
+    
     // meta data
     let clock = Instant::now();
+    println!("Rendering {} objects", world.len());
 
     // render stage
     let mut buffer: Vec<Color> = Vec::with_capacity((config.width * config.height) as usize);

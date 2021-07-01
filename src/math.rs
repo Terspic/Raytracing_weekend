@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign};
 use super::{random, random_range};
 
 #[derive(Debug, Clone, Copy)]
@@ -102,6 +102,14 @@ impl Vec3 {
             && (self.y - v.y).abs() < f64::EPSILON
             && (self.z - v.z).abs() < f64::EPSILON
     }
+
+    pub fn is_nan(&self) -> bool {
+        self.x.is_nan() || self.y.is_nan() || self.z.is_nan()
+    }
+
+    pub fn is_infinite(&self) -> bool {
+        self.x.is_infinite() || self.y.is_infinite() || self.z.is_infinite()
+    }
 }
 
 impl Add for Vec3 {
@@ -152,14 +160,6 @@ impl Mul<f64> for Vec3 {
     }
 }
 
-impl Mul<Vec3> for f64 {
-    type Output = Vec3;
-
-    fn mul(self, rhs: Vec3) -> Self::Output {
-        rhs.mul(self)
-    }
-}
-
 impl MulAssign<f64> for Vec3 {
     fn mul_assign(&mut self, rhs: f64) {
         *self = *self * rhs;
@@ -204,6 +204,39 @@ impl Neg for Vec3 {
             x: -self.x,
             y: -self.y,
             z: -self.z,
+        }
+    }
+}
+
+impl Mul<Vec3> for f64 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Vec3) -> Self::Output {
+        rhs.mul(self)
+    }
+}
+
+impl Div<Vec3> for f64 {
+    type Output = Vec3;
+
+    fn div(self, rhs: Vec3) -> Self::Output {
+        Self::Output {
+            x: self / rhs.x,
+            y: self / rhs.y,
+            z: self / rhs.z
+        }
+    }
+}
+
+impl Index<usize> for Vec3 {
+    type Output = f64;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            _ => panic!("index out of range"),
         }
     }
 }
