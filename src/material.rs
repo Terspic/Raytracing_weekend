@@ -1,9 +1,12 @@
+use std::fmt::Debug;
+
 use super::{ray, Color, HitRecord, Ray, Vec3, random};
 
-pub trait Scatter: Send + Sync {
+pub trait Scatter: Send + Sync + Debug {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)>;
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Lambertian {
     pub albedo: Color,
 }
@@ -26,6 +29,7 @@ impl Scatter for Lambertian {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Metal {
     pub albedo: Color,
     pub fuzz: f64,
@@ -54,6 +58,7 @@ impl Scatter for Metal {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Dielectric {
     pub eta: f64,
 }

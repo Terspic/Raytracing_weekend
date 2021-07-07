@@ -1,7 +1,12 @@
-use super::{is_campled, vec3, Point3, Ray, Scatter, Vec3};
-use std::sync::Arc;
+use super::{is_campled, random_u32, vec3, Point3, Ray, Scatter, Vec3};
+use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
-#[derive(Clone)]
+pub trait Hit: Send + Sync + Debug {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
+    fn bounding_box(&self, t1: f64, t2: f64) -> Option<AABB>;
+}
+
+#[derive(Clone, Debug)]
 pub struct HitRecord {
     pub point: Point3,
     pub normal: Vec3,
@@ -19,11 +24,6 @@ impl HitRecord {
             -outward_normal
         };
     }
-}
-
-pub trait Hit: Send + Sync {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
-    fn bounding_box(&self, t1: f64, t2: f64) -> Option<AABB>;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -45,13 +45,9 @@ impl AABB {
         for i in 0..3 {
             tmin = t1[i].min(t2[i]).max(tmin);
             tmax = t1[i].max(t2[i]).min(tmax);
-
-            if tmax <= tmin {
-                return false;
-            }
         }
 
-        true
+        tmin <= tmax
     }
 
     pub fn surrounding_box(b0: &Self, b1: &Self) -> Self {
@@ -70,9 +66,158 @@ impl AABB {
     }
 }
 
-pub type World = Vec<Box<dyn Hit>>;
+type NodeID = usize;
 
-impl Hit for World {
+#[derive(Debug, Clone)]
+struct BVNode {
+    left: Option<NodeID>,
+    right: Option<NodeID>,
+    bbox: AABB,
+    hittable: Option<Arc<dyn Hit>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BVTree {
+    nodes: Vec<BVNode>,
+    root_id: NodeID,
+    pub objects_count: usize,
+}
+
+impl BVTree {
+    pub fn new(mut l: HittableList) -> Self {
+        let mut tree = Self {
+            nodes: Vec::with_capacity(2 * l.len() - 1),
+            root_id: 0,
+            objects_count: l.len(),
+        };
+
+        tree.root_id = tree.build(&mut l);
+        tree
+    }
+
+    fn build(&mut self, l: &mut [Arc<dyn Hit>]) -> NodeID {
+        let (left, right): (NodeID, NodeID);
+        if l.len() == 1 {
+            return self.new_leaf(&l[0]);
+        } else if l.len() == 2 {
+            left = self.new_leaf(&l[0]);
+            right = self.new_leaf(&l[1]);
+        } else {
+            let axis = random_u32(0..3);
+            l.sort_by(|a, b| {
+                Self::compare_boxes(
+                    &a.bounding_box(0.0, 0.0).unwrap(),
+                    &b.bounding_box(0.0, 0.0).unwrap(),
+                    axis as usize,
+                )
+            });
+            let (left_hits, right_hits) = l.split_at_mut(l.len() / 2);
+            left = self.build(left_hits);
+            right = self.build(right_hits);
+        }
+
+        self.new_node(
+            left,
+            right,
+            AABB::surrounding_box(&self.nodes[left].bbox, &self.nodes[right].bbox),
+        )
+    }
+
+    fn new_leaf(&mut self, hittable: &Arc<dyn Hit>) -> NodeID {
+        self.nodes.push(BVNode {
+            left: None,
+            right: None,
+            bbox: hittable.bounding_box(0.0, 0.0).unwrap(),
+            hittable: Some(hittable.clone()),
+        });
+
+        self.nodes.len() - 1
+    }
+
+    fn new_node(&mut self, left: NodeID, right: NodeID, bbox: AABB) -> NodeID {
+        self.nodes.push(BVNode {
+            left: Some(left),
+            right: Some(right),
+            bbox,
+            hittable: None,
+        });
+
+        self.nodes.len() - 1
+    }
+
+    fn compare_boxes(a: &AABB, b: &AABB, axis: usize) -> Ordering {
+        a.min[axis].partial_cmp(&b.min[axis]).unwrap()
+    }
+
+    fn hit_node(&self, id: NodeID, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let node = self.nodes[id].clone();
+        if !node.bbox.hit(&r, t_min, t_max) {
+            return None;
+        }
+
+        // check if node is a leaf
+        if node.left.is_none() && node.right.is_none() {
+            return node.hittable.unwrap().hit(r, t_min, t_max);
+        }
+
+        let hit_left = match node.left {
+            Some(id) => self.hit_node(id, &r, t_min, t_max),
+            None => None,
+        };
+        let hit_right = match node.right {
+            Some(id) => self.hit_node(id, &r, t_min, t_max),
+            None => None,
+        };
+
+        match (hit_left, hit_right) {
+            (None, None) => return None,
+            (Some(left_rec), None) => return Some(left_rec),
+            (None, Some(right_rec)) => return Some(right_rec),
+            (Some(left_rec), Some(right_rec)) => {
+                if left_rec.t < right_rec.t {
+                    return Some(left_rec);
+                } else {
+                    return Some(right_rec);
+                }
+            }
+        }
+    }
+}
+
+impl Hit for BVTree {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        // ray doesn't hit bbox of the tree
+        if !self.nodes[self.root_id].bbox.hit(&r, t_min, t_max) {
+            return None;
+        }
+
+        // ray hit bbox
+        self.hit_node(self.root_id, r, t_min, t_max)
+    }
+
+    fn bounding_box(&self, _: f64, _: f64) -> Option<AABB> {
+        Some(self.nodes[self.root_id].bbox)
+    }
+}
+
+impl std::fmt::Display for BVTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Root ID: {}\n", self.root_id)?;
+        for (i, node) in self.nodes.iter().enumerate() {
+            write!(
+                f,
+                "Node {0}: (left = {1:?}, right = {2:?})\n",
+                i, node.left, node.right
+            )?;
+        }
+
+        Ok(())
+    }
+}
+
+pub type HittableList = Vec<Arc<dyn Hit>>;
+
+impl Hit for HittableList {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let mut tmp_rec = None;
         let mut closest: f64 = t_max;
@@ -104,7 +249,7 @@ impl Hit for World {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Sphere {
     pub center: Point3,
     pub radius: f64,
@@ -162,7 +307,7 @@ impl Hit for Sphere {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MovingSphere {
     pub radius: f64,
     pub mat: Arc<dyn Scatter>,
@@ -237,5 +382,37 @@ impl Hit for MovingSphere {
                 self.center(t2) - self.radius * Vec3::ONE,
             ),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_build_tree() {
+        let mut world = HittableList::new();
+        world.push(Arc::new(Sphere::new(
+            vec3(-10.0, 0.0, 0.0),
+            2.5,
+            Arc::new(Lambertian::new(Color::new(255, 0, 0, 255))),
+        )));
+        world.push(Arc::new(Sphere::new(
+            vec3(0.0, 0.0, 0.0),
+            2.5,
+            Arc::new(Lambertian::new(Color::new(0, 255, 0, 255))),
+        )));
+        world.push(Arc::new(Sphere::new(
+            vec3(10.0, 0.0, 0.0),
+            2.5,
+            Arc::new(Lambertian::new(Color::new(0, 0, 255, 255))),
+        )));
+
+        let tree = BVTree::new(world);
+        println!("{}", tree);
+
+        let r = ray(vec3(0.0, -10.0, 0.0), vec3(0.0, 1.0, 0.0), 0.0);
+        println!("{:?}", tree.hit(&r, 0.0001, f64::INFINITY));
     }
 }

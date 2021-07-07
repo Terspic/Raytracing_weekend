@@ -1,12 +1,13 @@
 use image::{ImageBuffer, RgbaImage};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
-    time::Instant
+    time::Instant,
+    path::Path,
 };
 
 use raytracing_weekend::*;
 
-pub fn ray_color(r: &Ray, world: &World, depth: u64) -> Vec3 {
+pub fn ray_color(r: &Ray, world: &BVTree, depth: u64) -> Vec3 {
     if depth <= 0 {
         return Vec3::ZERO;
     }
@@ -27,20 +28,22 @@ pub fn ray_color(r: &Ray, world: &World, depth: u64) -> Vec3 {
 
 fn main() {
     // config 
-    let config = Config::load(std::path::Path::new("config.txt"));
+    let config = Config::load(Path::new("config.txt"));
 
     // image buffer
     let mut img: RgbaImage = ImageBuffer::new(config.width, config.height);
 
     // scene
-    let (world, camera) = scenes::spheres(config.aspect_ratio);
-    
+    let (world, camera) = scenes::two_spheres(config.aspect_ratio);
+    let tree = BVTree::new(world);
+
     // meta data
-    let clock = Instant::now();
-    println!("Rendering {} objects", world.len());
+    println!("Rendering {} objects", tree.objects_count);
 
     // render stage
     let mut buffer: Vec<Color> = Vec::with_capacity((config.width * config.height) as usize);
+
+    let clock = Instant::now();
     for y in 0..config.height {
         let mut line: Vec<Color> = (0..config.width).into_par_iter().map(|x|{
             let mut color = Vec3::ZERO;
@@ -49,7 +52,7 @@ fn main() {
                 let v = (y as f64 + random()) / ((config.height - 1) as f64);
     
                 let r = camera.get_ray(u, v);
-                color += ray_color(&r, &world, config.depth as u64);
+                color += ray_color(&r, &tree, config.depth as u64);
             }
             
             Color::from_vec(color, config.samples as u64)
