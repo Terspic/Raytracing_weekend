@@ -1,23 +1,32 @@
-use std::fmt::Debug;
+use crate::SolidColor;
 
-use super::{ray, Color, HitRecord, Ray, Vec3, random};
+use super::{random, ray, Color, HitRecord, Ray, Texture, Vec3};
+use std::fmt::Debug;
 
 pub trait Scatter: Send + Sync + Debug {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)>;
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Lambertian {
-    pub albedo: Color,
+#[derive(Debug, Clone)]
+pub struct Lambertian<T: Texture> {
+    pub albedo: T,
 }
 
-impl Lambertian {
-    pub fn new(color: Color) -> Self {
-        Self { albedo: color }
+impl<T: Texture> Lambertian<T> {
+    pub fn new(texture: T) -> Self {
+        Self { albedo: texture }
     }
 }
 
-impl Scatter for Lambertian {
+impl Lambertian<SolidColor> {
+    pub fn from_color(color: Color) -> Self {
+        Self {
+            albedo: SolidColor::new(color)
+        }
+    }
+}
+
+impl<T: Texture> Scatter for Lambertian<T> {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let mut scatter_dir = rec.normal + Vec3::random_unit_sphere();
         if scatter_dir.is_near(Vec3::ZERO) {
@@ -25,7 +34,7 @@ impl Scatter for Lambertian {
         }
         let scattered = ray(rec.point, scatter_dir, r.time);
 
-        Some((self.albedo, scattered))
+        Some((self.albedo.texel(rec.u, rec.v, &rec.point), scattered))
     }
 }
 
@@ -47,7 +56,7 @@ impl Scatter for Metal {
         let scattered = ray(
             rec.point,
             reflected + self.fuzz * Vec3::random_unit_sphere(),
-            r.time
+            r.time,
         );
 
         if scattered.dir.dot(rec.normal) > 0.0 {

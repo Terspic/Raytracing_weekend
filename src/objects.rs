@@ -1,4 +1,4 @@
-use super::{is_campled, random_u32, vec3, Point3, Ray, Scatter, Vec3};
+use super::{is_campled, random_u32, vec3, Point3, Ray, Scatter, Vec3, PI};
 use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
 pub trait Hit: Send + Sync + Debug {
@@ -11,6 +11,8 @@ pub struct HitRecord {
     pub point: Point3,
     pub normal: Vec3,
     pub t: f64,
+    pub u: f64,
+    pub v: f64,
     pub front_face: bool,
     pub mat: Arc<dyn Scatter>,
 }
@@ -264,6 +266,13 @@ impl Sphere {
             mat,
         }
     }
+
+    pub fn get_uv(point: &Point3) -> (f64, f64) {
+        let theta = -point.y.acos();
+        let phi = -point.z.atan2(point.x);
+
+        (phi / (2.0 * PI), theta / PI)
+    }
 }
 
 impl Hit for Sphere {
@@ -287,15 +296,19 @@ impl Hit for Sphere {
             }
         }
 
+        let outward_normal = (r.at(root) - self.center) / self.radius;
+        let (u, v) = Self::get_uv(&outward_normal);
         let mut rec = HitRecord {
             point: r.at(root),
             normal: vec3(0.0, 0.0, 0.0),
             t: root,
+            u,
+            v,
             front_face: false,
             mat: self.mat.clone(),
         };
 
-        rec.set_face_normal(&r, (r.at(root) - self.center) / self.radius);
+        rec.set_face_normal(&r, outward_normal);
         Some(rec)
     }
 
@@ -336,6 +349,13 @@ impl MovingSphere {
     pub fn center(&self, t: f64) -> Point3 {
         self.centers.0 + ((t - self.t1) / (self.t2 - self.t1)) * (self.centers.1 - self.centers.0)
     }
+
+    pub fn get_uv(point: &Point3) -> (f64, f64) {
+        let theta = -point.y.acos();
+        let phi = -point.z.atan2(point.x);
+
+        (phi / (2.0 * PI), theta / PI)
+    }
 }
 
 impl Hit for MovingSphere {
@@ -359,15 +379,19 @@ impl Hit for MovingSphere {
             }
         }
 
+        let outward_normal = (r.at(root) - self.center(r.time)) / self.radius;
+        let (u, v) = Self::get_uv(&outward_normal);
         let mut rec = HitRecord {
             point: r.at(root),
             normal: vec3(0.0, 0.0, 0.0),
             t: root,
+            u,
+            v,
             front_face: false,
             mat: self.mat.clone(),
         };
 
-        rec.set_face_normal(&r, (r.at(root) - self.center(r.time)) / self.radius);
+        rec.set_face_normal(&r, outward_normal);
         Some(rec)
     }
 
@@ -396,17 +420,17 @@ mod tests {
         world.push(Arc::new(Sphere::new(
             vec3(-10.0, 0.0, 0.0),
             2.5,
-            Arc::new(Lambertian::new(Color::new(255, 0, 0, 255))),
+            Arc::new(Lambertian::from_color(Color::new(255, 0, 0, 255))),
         )));
         world.push(Arc::new(Sphere::new(
             vec3(0.0, 0.0, 0.0),
             2.5,
-            Arc::new(Lambertian::new(Color::new(0, 255, 0, 255))),
+            Arc::new(Lambertian::from_color(Color::new(0, 255, 0, 255))),
         )));
         world.push(Arc::new(Sphere::new(
             vec3(10.0, 0.0, 0.0),
             2.5,
-            Arc::new(Lambertian::new(Color::new(0, 0, 255, 255))),
+            Arc::new(Lambertian::from_color(Color::new(0, 0, 255, 255))),
         )));
 
         let tree = BVTree::new(world);

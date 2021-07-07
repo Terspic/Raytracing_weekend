@@ -1,3 +1,5 @@
+use crate::CheckerTexture;
+
 use super::{
     random, random_range, vec3, Camera, Color, Dielectric, HittableList, Lambertian, Metal,
     MovingSphere, Point3, Sphere,
@@ -9,22 +11,43 @@ pub fn two_spheres(a: f64) -> (HittableList, Camera) {
     world.push(Arc::new(Sphere::new(
         vec3(0.0, -5001.0, 0.0),
         5000.0,
-        Arc::new(Lambertian::new(Color::LIGHT_GREY)),
+        Arc::new(Lambertian::new(CheckerTexture::from_color(Color::LIGHT_GREY, Color::GREY))),
     )));
     world.push(Arc::new(Sphere::new(
         vec3(-1.0, 0.0, 0.0),
         1.0,
-        Arc::new(Lambertian::new(Color::CYAN)),
+        Arc::new(Lambertian::from_color(Color::CYAN)),
     )));
     world.push(Arc::new(Sphere::new(
         vec3(1.0, 0.0, 0.0),
         1.0,
-        Arc::new(Lambertian::new(Color::GREEN)),
+        Arc::new(Lambertian::from_color(Color::GREEN)),
     )));
 
     let eye = vec3(0.0, 1.5, -10.0);
     let lookat = vec3(0.0, 0.0, 0.0);
-    let camera = Camera::new(20.0, eye, lookat, a, 0.1, 10.0, 0.0, 0.0);
+    let camera = Camera::new(30.0, eye, lookat, a, 0.1, 10.0, 0.0, 0.0);
+
+    (world, camera)
+}
+
+pub fn two_checker(a: f64) -> (HittableList, Camera) {
+    let mut world = HittableList::with_capacity(2);
+
+    world.push(Arc::new(Sphere::new(
+        vec3(-10.0, 0.0, 0.0),
+        10.0,
+        Arc::new(Lambertian::new(CheckerTexture::from_color(Color::LIGHT_GREY, Color::GREY))),
+    )));
+    world.push(Arc::new(Sphere::new(
+        vec3(10.0, 0.0, 0.0),
+        10.0,
+        Arc::new(Lambertian::new(CheckerTexture::from_color(Color::LIGHT_GREY, Color::GREY))),
+    )));
+
+    let eye = vec3(0.0, 0.0, -80.0);
+    let lookat = vec3(0.0, 0.0, 0.0);
+    let camera = Camera::new(30.0, eye, lookat, a, 0.1, 10.0, 0.0, 0.0);
 
     (world, camera)
 }
@@ -34,7 +57,7 @@ pub fn spheres(a: f64) -> (HittableList, Camera) {
     w.push(Arc::new(Sphere::new(
         vec3(0.0, -1000.0, 0.0),
         1000.0,
-        Arc::new(Lambertian::new(Color::GREY)),
+        Arc::new(Lambertian::from_color(Color::GREY)),
     )));
 
     for a in -11..11 {
@@ -48,7 +71,7 @@ pub fn spheres(a: f64) -> (HittableList, Camera) {
                     w.push(Arc::new(Sphere::new(
                         center,
                         0.2,
-                        Arc::new(Lambertian::new(Color::random())),
+                        Arc::new(Lambertian::from_color(Color::random())),
                     )));
                 } else if choose_mat < 0.95 {
                     w.push(Arc::new(Sphere::new(
@@ -75,7 +98,9 @@ pub fn spheres(a: f64) -> (HittableList, Camera) {
     w.push(Arc::new(Sphere::new(
         vec3(-4.0, 1.0, 0.0),
         1.0,
-        Arc::new(Lambertian::new(Color::new(104, 51, 26, 255))),
+        Arc::new(Lambertian::from_color(Color::new(
+            104, 51, 26, 255,
+        ))),
     )));
     w.push(Arc::new(Sphere::new(
         vec3(4.0, 1.0, 0.0),
@@ -95,7 +120,7 @@ pub fn moving_spheres(a: f64) -> (HittableList, Camera) {
     w.push(Arc::new(Sphere::new(
         vec3(0.0, -1000.0, 0.0),
         1000.0,
-        Arc::new(Lambertian::new(Color::GREY)),
+        Arc::new(Lambertian::from_color(Color::GREY)),
     )));
 
     for a in -11..11 {
@@ -112,7 +137,7 @@ pub fn moving_spheres(a: f64) -> (HittableList, Camera) {
                         0.2,
                         0.0,
                         1.0,
-                        Arc::new(Lambertian::new(Color::random())),
+                        Arc::new(Lambertian::from_color(Color::random())),
                     )));
                 } else if choose_mat < 0.95 {
                     w.push(Arc::new(Sphere::new(
@@ -139,7 +164,9 @@ pub fn moving_spheres(a: f64) -> (HittableList, Camera) {
     w.push(Arc::new(Sphere::new(
         vec3(-4.0, 1.0, 0.0),
         1.0,
-        Arc::new(Lambertian::new(Color::new(104, 51, 26, 255))),
+        Arc::new(Lambertian::from_color(Color::new(
+            104, 51, 26, 255,
+        ))),
     )));
     w.push(Arc::new(Sphere::new(
         vec3(4.0, 1.0, 0.0),

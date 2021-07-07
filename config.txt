@@ -1,4 +1,4 @@
-width = 1280
-height = 720
-samples = 1000
-depth = 15
+width = 514
+height = 288
+samples = 100
+depth = 5
