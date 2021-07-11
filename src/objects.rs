@@ -1,4 +1,4 @@
-use super::{is_campled, random_u32, vec3, Point3, Ray, Scatter, Vec3, PI};
+use super::{is_campled, random_u32, vec3, Material, Point3, Ray, Vec3, PI};
 use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
 pub trait Hit: Send + Sync + Debug {
@@ -14,7 +14,7 @@ pub struct HitRecord {
     pub u: f64,
     pub v: f64,
     pub front_face: bool,
-    pub mat: Arc<dyn Scatter>,
+    pub mat: Arc<dyn Material>,
 }
 
 impl HitRecord {
@@ -255,11 +255,11 @@ impl Hit for HittableList {
 pub struct Sphere {
     pub center: Point3,
     pub radius: f64,
-    pub mat: Arc<dyn Scatter>,
+    pub mat: Arc<dyn Material>,
 }
 
 impl Sphere {
-    pub fn new(center: Point3, radius: f64, mat: Arc<dyn Scatter>) -> Self {
+    pub fn new(center: Point3, radius: f64, mat: Arc<dyn Material>) -> Self {
         Self {
             center,
             radius,
@@ -268,8 +268,8 @@ impl Sphere {
     }
 
     pub fn get_uv(point: &Point3) -> (f64, f64) {
-        let theta = -point.y.acos();
-        let phi = -point.z.atan2(point.x);
+        let theta = (-point.y).acos();
+        let phi = (-point.z).atan2(point.x);
 
         (phi / (2.0 * PI), theta / PI)
     }
@@ -323,7 +323,7 @@ impl Hit for Sphere {
 #[derive(Clone, Debug)]
 pub struct MovingSphere {
     pub radius: f64,
-    pub mat: Arc<dyn Scatter>,
+    pub mat: Arc<dyn Material>,
     centers: (Point3, Point3),
     t1: f64,
     t2: f64,
@@ -335,7 +335,7 @@ impl MovingSphere {
         radius: f64,
         t1: f64,
         t2: f64,
-        mat: Arc<dyn Scatter>,
+        mat: Arc<dyn Material>,
     ) -> Self {
         Self {
             centers: center,
@@ -405,6 +405,154 @@ impl Hit for MovingSphere {
                 self.center(t2) - self.radius * Vec3::ONE,
                 self.center(t2) - self.radius * Vec3::ONE,
             ),
+        ))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct XYRect {
+    x: (f64, f64),
+    y: (f64, f64),
+    k: f64,
+    mat: Arc<dyn Material>,
+}
+
+impl XYRect {
+    pub fn new(x: (f64, f64), y: (f64, f64), k: f64, mat: Arc<dyn Material>) -> Self {
+        Self { x, y, k, mat }
+    }
+}
+
+impl Hit for XYRect {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let t = (self.k - r.origin.z) / r.dir.z;
+        if !is_campled(t, t_min, t_max) {
+            return None;
+        }
+
+        let x = r.origin.x + t * r.dir.x;
+        let y = r.origin.y + t * r.dir.y;
+        if !is_campled(x, self.x.0, self.x.1) || !is_campled(y, self.y.0, self.y.1) {
+            return None;
+        }
+
+        let normal = vec3(0.0, 0.0, 1.0);
+        let mut rec = HitRecord {
+            point: r.at(t),
+            normal,
+            t,
+            u: (x - self.x.0) / (self.x.1 - self.x.0),
+            v: (y - self.y.0) / (self.y.1 - self.y.0),
+            front_face: false,
+            mat: self.mat.clone(),
+        };
+        rec.set_face_normal(&r, normal);
+        Some(rec)
+    }
+
+    fn bounding_box(&self, _t1: f64, _t2: f64) -> Option<AABB> {
+        Some(AABB::new(
+            vec3(self.x.0, self.y.0, self.k - 0.0001),
+            vec3(self.x.1, self.y.1, self.k + 0.0001),
+        ))
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct XZRect {
+    x: (f64, f64),
+    z: (f64, f64),
+    k: f64,
+    mat: Arc<dyn Material>,
+}
+
+impl XZRect {
+    pub fn new(x: (f64, f64), z: (f64, f64), k: f64, mat: Arc<dyn Material>) -> Self {
+        Self { x, z, k, mat }
+    }
+}
+
+impl Hit for XZRect {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let t = (self.k - r.origin.y) / r.dir.y;
+        if !is_campled(t, t_min, t_max) {
+            return None;
+        }
+
+        let x = r.origin.x + t * r.dir.x;
+        let z = r.origin.z + t * r.dir.z;
+        if !is_campled(x, self.x.0, self.x.1) || !is_campled(z, self.z.0, self.z.1) {
+            return None;
+        }
+
+        let normal = vec3(0.0, 1.0, 0.0);
+        let mut rec = HitRecord {
+            point: r.at(t),
+            normal,
+            t,
+            u: (x - self.x.0) / (self.x.1 - self.x.0),
+            v: (z - self.z.0) / (self.z.1 - self.z.0),
+            front_face: false,
+            mat: self.mat.clone(),
+        };
+        rec.set_face_normal(&r, normal);
+        Some(rec)
+    }
+
+    fn bounding_box(&self, _t1: f64, _t2: f64) -> Option<AABB> {
+        Some(AABB::new(
+            vec3(self.x.0, self.k - 0.0001, self.z.0),
+            vec3(self.x.1, self.k + 0.0001, self.z.1),
+        ))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct YZRect {
+    y: (f64, f64),
+    z: (f64, f64),
+    k: f64,
+    mat: Arc<dyn Material>,
+}
+
+impl YZRect {
+    pub fn new(y: (f64, f64), z: (f64, f64), k: f64, mat: Arc<dyn Material>) -> Self {
+        Self { y, z, k, mat }
+    }
+}
+
+impl Hit for YZRect {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let t = (self.k - r.origin.x) / r.dir.x;
+        if !is_campled(t, t_min, t_max) {
+            return None;
+        }
+
+        let y = r.origin.y + t * r.dir.y;
+        let z = r.origin.z + t * r.dir.z;
+        if !is_campled(y, self.y.0, self.y.1) || !is_campled(z, self.z.0, self.z.1) {
+            return None;
+        }
+
+        let normal = vec3(0.0, 1.0, 0.0);
+        let mut rec = HitRecord {
+            point: r.at(t),
+            normal,
+            t,
+            u: (y - self.y.0) / (self.y.1 - self.y.0),
+            v: (z - self.z.0) / (self.z.1 - self.z.0),
+            front_face: false,
+            mat: self.mat.clone(),
+        };
+        rec.set_face_normal(&r, normal);
+        Some(rec)
+    }
+
+    fn bounding_box(&self, _t1: f64, _t2: f64) -> Option<AABB> {
+        Some(AABB::new(
+            vec3(self.k - 0.0001, self.y.0, self.z.0),
+            vec3(self.k + 0.0001, self.y.1, self.z.1),
         ))
     }
 }

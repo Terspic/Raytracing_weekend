@@ -1,5 +1,5 @@
-use std::sync::Arc;
-
+use std::{path::Path, sync::Arc};
+use image::RgbaImage;
 use crate::{Color, Point3};
 
 pub trait Texture: std::fmt::Debug + Send + Sync {
@@ -53,5 +53,47 @@ impl Texture for CheckerTexture {
         } else {
             return self.even.texel(u, v, point);
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ImageTexture {
+    data: RgbaImage,
+    dim: (u32, u32),
+}
+
+impl ImageTexture {
+    pub fn new(img: RgbaImage) -> Self {
+        let dim = img.dimensions();
+        Self {
+            data: img,
+            dim,
+        }
+    }
+
+    pub fn from_path(path: &Path) -> Self {
+        let img = image::open(path).unwrap().into_rgba8();
+        Self::new(img)
+    }
+}
+
+impl Texture for ImageTexture {
+    fn texel(&self, u: f64, v: f64, _: &Point3) -> Color {
+        if self.data.len() == 0 {
+            return Color::CYAN;
+        }
+
+        // clamp textures coordinates
+        let u = u.clamp(0.0, 1.0);
+        let v = 1.0 - v.clamp(0.0, 1.0);
+
+        let mut i = (u * self.dim.0 as f64) as u32;
+        let mut j = (v * self.dim.1 as f64) as u32;
+
+        if i >= self.dim.0 { i = self.dim.0 - 1 };
+        if j >= self.dim.1 { j = self.dim.1 - 1 };
+
+        let pixel = self.data.get_pixel(i, j);
+        Color::from(pixel.0)
     }
 }

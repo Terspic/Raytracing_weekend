@@ -1,10 +1,11 @@
-use crate::SolidColor;
+use super::{random, ray, Color, HitRecord, Point3, Ray, SolidColor, Texture, Vec3};
+use std::{fmt::Debug, sync::Arc};
 
-use super::{random, ray, Color, HitRecord, Ray, Texture, Vec3};
-use std::fmt::Debug;
-
-pub trait Scatter: Send + Sync + Debug {
+pub trait Material: Send + Sync + Debug {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)>;
+    fn emitted(&self, _u: f64, _v: f64, _point: &Point3) -> Color {
+        Color::BLACK
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -21,12 +22,12 @@ impl<T: Texture> Lambertian<T> {
 impl Lambertian<SolidColor> {
     pub fn from_color(color: Color) -> Self {
         Self {
-            albedo: SolidColor::new(color)
+            albedo: SolidColor::new(color),
         }
     }
 }
 
-impl<T: Texture> Scatter for Lambertian<T> {
+impl<T: Texture> Material for Lambertian<T> {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let mut scatter_dir = rec.normal + Vec3::random_unit_sphere();
         if scatter_dir.is_near(Vec3::ZERO) {
@@ -50,7 +51,7 @@ impl Metal {
     }
 }
 
-impl Scatter for Metal {
+impl Material for Metal {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let reflected = r.dir.reflect(rec.normal).normalize();
         let scattered = ray(
@@ -83,7 +84,7 @@ impl Dielectric {
     }
 }
 
-impl Scatter for Dielectric {
+impl Material for Dielectric {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let eta1 = if rec.front_face { 1.0 } else { self.eta };
         let unit_dir = r.dir.normalize();
@@ -101,5 +102,32 @@ impl Scatter for Dielectric {
         let scattered = ray(rec.point, direction, r.time);
 
         Some((Color::WHITE, scattered))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DiffuseLight {
+    emit: Arc<dyn Texture>,
+}
+
+impl DiffuseLight {
+    pub fn new(emit: &Arc<dyn Texture>) -> Self {
+        Self { emit: emit.clone() }
+    }
+
+    pub fn from_color(c: Color) -> Self {
+        Self {
+            emit: Arc::new(SolidColor::new(c)),
+        }
+    }
+}
+
+impl Material for DiffuseLight {
+    fn scatter(&self, _r: &Ray, _rec: &HitRecord) -> Option<(Color, Ray)> {
+        None
+    }
+
+    fn emitted(&self, u: f64, v: f64, point: &Point3) -> Color {
+        self.emit.texel(u, v, point)
     }
 }

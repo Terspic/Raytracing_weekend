@@ -38,3 +38,30 @@ pub fn random_u32(range: Range<u32>) -> u32 {
 pub fn random_range(min: f64, max: f64) -> f64 {
     min + (max - min) * random()
 }
+
+pub fn get_ray(x: u32, y: u32, camera: &Camera, config: &Config) -> Ray {
+    let u = (x as f64 + random()) / ((config.width - 1) as f64);
+    let v = (y as f64 + random()) / ((config.height - 1) as f64);
+
+    camera.get_ray(u, v)
+}
+
+pub fn ray_color(r: &Ray, world: &impl Hit, depth: u32) -> Vec3 {
+    if depth == 0 {
+        return Vec3::ZERO;
+    }
+
+    if let Some(record) = world.hit(&r, 0.001, f64::INFINITY) {
+        let scatter_result = record.mat.scatter(&r, &record);
+        let emit = record.mat.emitted(record.u, record.v, &record.point);
+
+        if let Some((attenuation, scattered)) = scatter_result { 
+            return emit.to_vec3() + attenuation.to_vec3() * ray_color(&scattered, world, depth - 1);
+        }
+
+        return emit.to_vec3();
+    }
+
+    // background
+    vec3(0.01, 0.01, 0.01)
+}

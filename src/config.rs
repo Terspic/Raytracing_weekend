@@ -1,12 +1,15 @@
+use std::fmt::Display;
 use std::io::Write;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub width: u32,
     pub height: u32,
     pub aspect_ratio: f64,
     pub samples: u32,
     pub depth: u32,
+
+    src_file: String,
 }
 
 impl Default for Config {
@@ -17,6 +20,7 @@ impl Default for Config {
             aspect_ratio: 16.0 / 9.0,
             samples: 10,
             depth: 5,
+            src_file: String::from(""),
         }
     }
 }
@@ -32,6 +36,8 @@ impl Config {
         };
 
         let mut config = Self::default();
+        config.src_file = String::from(path.to_str().unwrap());
+
         let lines = content.split("\n");
         let mut line_count = 1;
 
@@ -81,6 +87,17 @@ impl Config {
         file.write(format!("width = {}\n", self.width).as_bytes()).unwrap();
         file.write(format!("height = {}\n", self.height).as_bytes()).unwrap();
         file.write(format!("samples = {}\n", self.samples).as_bytes()).unwrap();
-        file.write(format!("depth = {}\n", self.depth).as_bytes()).unwrap();
+        file.write(format!("depth = {}", self.depth).as_bytes()).unwrap();
+    }
+}
+
+impl Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Config: ({})\n", self.src_file)?;
+        write!(f, "\twidth   = {}\n", self.width)?;
+        write!(f, "\theight  = {}\n", self.height)?;
+        write!(f, "\tsamples = {}\n", self.samples)?;
+        write!(f, "\tdepth   = {}\n", self.depth)?;
+        Ok(())
     }
 }

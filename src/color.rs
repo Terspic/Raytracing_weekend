@@ -70,6 +70,12 @@ impl Into<[u8; 4]> for Color {
     }
 }
 
+impl From<[u8; 4]> for Color {
+    fn from(data: [u8; 4]) -> Self {
+        Self::new(data[0], data[1], data[2], data[3])
+    }
+}
+
 #[rustfmt::skip]
 impl Color {
     pub const BLACK: Self       = Self { r: 0,   g: 0,   b: 0,   a: 0   };
