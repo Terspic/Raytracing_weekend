@@ -1,18 +1,18 @@
-pub mod math;
-pub mod color;
-pub mod objects;
 pub mod camera;
-pub mod material;
-pub mod scenes;
+pub mod color;
 pub mod config;
+pub mod material;
+pub mod math;
+pub mod objects;
+pub mod scenes;
 pub mod texture;
 
-pub use math::*;
-pub use color::*;
-pub use objects::*;
 pub use camera::*;
-pub use material::*;
+pub use color::*;
 pub use config::*;
+pub use material::*;
+pub use math::*;
+pub use objects::*;
 pub use texture::*;
 
 use std::ops::Range;
@@ -46,7 +46,7 @@ pub fn get_ray(x: u32, y: u32, camera: &Camera, config: &Config) -> Ray {
     camera.get_ray(u, v)
 }
 
-pub fn ray_color(r: &Ray, world: &impl Hit, depth: u32) -> Vec3 {
+pub fn ray_color(r: &Ray, world: &impl Hit, depth: u32, background: Vec3) -> Vec3 {
     if depth == 0 {
         return Vec3::ZERO;
     }
@@ -55,13 +55,14 @@ pub fn ray_color(r: &Ray, world: &impl Hit, depth: u32) -> Vec3 {
         let scatter_result = record.mat.scatter(&r, &record);
         let emit = record.mat.emitted(record.u, record.v, &record.point);
 
-        if let Some((attenuation, scattered)) = scatter_result { 
-            return emit.to_vec3() + attenuation.to_vec3() * ray_color(&scattered, world, depth - 1);
+        if let Some((attenuation, scattered)) = scatter_result {
+            return emit
+                + attenuation.to_vec3() * ray_color(&scattered, world, depth - 1, background);
         }
 
-        return emit.to_vec3();
+        return emit;
     }
 
     // background
-    vec3(0.01, 0.01, 0.01)
+    background
 }

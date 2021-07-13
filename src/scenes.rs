@@ -1,10 +1,11 @@
 use super::{
-    random, random_range, vec3, Camera, CheckerTexture, Color, Dielectric, DiffuseLight,
-    HittableList, ImageTexture, Lambertian, Metal, MovingSphere, Point3, Sphere, Vec3, XZRect,
+    random, random_range, vec3, Camera, CheckerTexture, Color, Cube, Dielectric, DiffuseLight,
+    HittableList, ImageTexture, Lambertian, Metal, MovingSphere, Point3, Sphere, Vec3,
+    XZRect, YZRect, XYRect,
 };
 use std::{path::Path, sync::Arc};
 
-pub fn two_spheres(a: f64) -> (HittableList, Camera) {
+pub fn two_spheres(a: f64) -> (HittableList, Camera, Color) {
     let mut world = HittableList::with_capacity(4);
     world.push(Arc::new(Sphere::new(
         vec3(0.0, -5001.0, 0.0),
@@ -28,17 +29,17 @@ pub fn two_spheres(a: f64) -> (HittableList, Camera) {
         (-1.0, 1.0),
         (-1.0, 1.0),
         2.0,
-        Arc::new(DiffuseLight::from_color(Color::WHITE)),
+        Arc::new(DiffuseLight::from_color(Color::WHITE, 10.0)),
     )));
 
     let eye = vec3(0.0, 3.0, -10.0);
     let lookat = vec3(0.0, 0.0, 0.0);
     let camera = Camera::new(30.0, eye, lookat, a, 0.1, 10.0, 0.0, 0.0);
 
-    (world, camera)
+    (world, camera, Color::new(10, 10, 10, 255))
 }
 
-pub fn two_checker(a: f64) -> (HittableList, Camera) {
+pub fn two_checker(a: f64) -> (HittableList, Camera, Color) {
     let mut world = HittableList::with_capacity(2);
 
     world.push(Arc::new(Sphere::new(
@@ -62,10 +63,10 @@ pub fn two_checker(a: f64) -> (HittableList, Camera) {
     let lookat = vec3(0.0, 0.0, 0.0);
     let camera = Camera::new(30.0, eye, lookat, a, 0.1, 10.0, 0.0, 0.0);
 
-    (world, camera)
+    (world, camera, Color::WHITE)
 }
 
-pub fn globe(a: f64) -> (HittableList, Camera) {
+pub fn globe(a: f64) -> (HittableList, Camera, Color) {
     let mut world = HittableList::with_capacity(2);
 
     world.push(Arc::new(Sphere::new(
@@ -94,10 +95,10 @@ pub fn globe(a: f64) -> (HittableList, Camera) {
         0.0,
         0.0,
     );
-    (world, camera)
+    (world, camera, Color::WHITE)
 }
 
-pub fn spheres(a: f64) -> (HittableList, Camera) {
+pub fn spheres(a: f64) -> (HittableList, Camera, Color) {
     let mut w = HittableList::with_capacity(500);
     w.push(Arc::new(Sphere::new(
         vec3(0.0, -1000.0, 0.0),
@@ -155,10 +156,10 @@ pub fn spheres(a: f64) -> (HittableList, Camera) {
     let lookat = vec3(0.0, 0.0, 0.0);
     let camera = Camera::new(20.0, eye, lookat, a, 0.1, 10.0, 0.0, 0.0);
 
-    (w, camera)
+    (w, camera, Color::WHITE)
 }
 
-pub fn moving_spheres(a: f64) -> (HittableList, Camera) {
+pub fn moving_spheres(a: f64) -> (HittableList, Camera, Color) {
     let mut w = HittableList::with_capacity(500);
     w.push(Arc::new(Sphere::new(
         vec3(0.0, -1000.0, 0.0),
@@ -219,11 +220,63 @@ pub fn moving_spheres(a: f64) -> (HittableList, Camera) {
     let lookat = vec3(0.0, 0.0, 0.0);
     let camera = Camera::new(20.0, eye, lookat, a, 0.1, 10.0, 0.0, 1.0);
 
-    (w, camera)
+    (w, camera, Color::WHITE)
 }
 
-/* pub fn cornell_box(a: f64) -> (HittableList, Camera) {
-    let mut world = HittableList::with_capacity(7);
+pub fn single_box(a: f64) -> (HittableList, Camera, Color) {
+    let mut world = HittableList::with_capacity(3);
 
-    todo!()
-} */
+    world.push(Arc::new(Sphere::new(
+        vec3(0.0, -5001.0, 0.0),
+        5000.0,
+        Arc::new(Lambertian::new(CheckerTexture::from_color(
+            Color::LIGHT_GREY,
+            Color::GREY,
+        ))),
+    )));
+    world.push(Arc::new(XZRect::new(
+        (-1.0, 1.0),
+        (-1.0, 1.0),
+        1.5,
+        Arc::new(DiffuseLight::from_color(Color::WHITE, 10.0)),
+    )));
+    world.push(Arc::new(Cube::unit_cube(
+        vec3(-0.5, -1.0, -0.5),
+        Arc::new(Lambertian::from_color(Color::WHITE)),
+    )));
+
+    let eye = vec3(2.0, 2.0, -10.0);
+    let look_at = vec3(0.0, 0.0, 0.0);
+    let camera = Camera::new(30.0, eye, look_at, a, 0.1, eye.norm(), 0.0, 0.0);
+
+    (world, camera, Color::BLACK)
+}
+
+pub fn cornell_box(a: f64) -> (HittableList, Camera, Color) {
+    let mut world = HittableList::with_capacity(8);
+
+    let red = Arc::new(Lambertian::from_color(Color::new(165, 12, 12, 255)));
+    let white = Arc::new(Lambertian::from_color(Color::new(182, 182, 182, 255)));
+    let green = Arc::new(Lambertian::from_color(Color::new(31, 115, 12, 38)));
+    let light = Arc::new(DiffuseLight::from_color(Color::WHITE, 10.0));
+
+    // walls
+    world.push(Arc::new(YZRect::new((0.0, 555.0), (0.0, 555.0), 555.0, green.clone())));
+    world.push(Arc::new(YZRect::new((0.0, 555.0), (0.0, 555.0), 0.0, red.clone())));
+
+    world.push(Arc::new(XZRect::new((113.0, 443.0), (127.0, 432.0), 554.0, light.clone())));
+
+    world.push(Arc::new(XZRect::new((0.0, 555.0), (0.0, 555.0), 0.0, white.clone())));
+    world.push(Arc::new(XZRect::new((0.0, 555.0), (0.0, 555.0), 555.0, white.clone())));
+    world.push(Arc::new(XYRect::new((0.0, 555.0), (0.0, 555.0), 555.0, white.clone())));
+
+    // boxes
+    world.push(Arc::new(Cube::new(vec3(130.0, 0.0, 65.0), vec3(295.0, 165.0, 230.0), white.clone())));
+    world.push(Arc::new(Cube::new(vec3(265.0, 0.0, 295.0), vec3(430.0, 330.0, 460.0), white.clone())));
+
+    let eye = vec3(278.0, 278.0, -800.0);
+    let look_at = vec3(278.0, 278.0, 0.0);
+    let camera = Camera::new(40.0, eye, look_at, a, 0.1, (eye - look_at).norm(), 0.0, 0.0);
+
+    (world, camera, Color::BLACK)
+}

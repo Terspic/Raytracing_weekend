@@ -12,11 +12,11 @@ fn main() {
     let mut img: RgbaImage = ImageBuffer::new(config.width, config.height);
 
     // scene
-    let (world, camera) = scenes::two_spheres(config.aspect_ratio);
+    let (world, camera, background) = scenes::cornell_box(config.aspect_ratio);
     let tree = BVTree::new(world);
 
     // meta data
-    println!("Scene rendered : two_spheres");
+    println!("Scene rendered : cornell_box");
     println!("Objects rendered : {}", tree.objects_count);
     println!("{}", config);
 
@@ -30,8 +30,12 @@ fn main() {
             .map(|x| {
                 let mut color = Vec3::ZERO;
                 for _ in 0..config.samples {
-                    color +=
-                        ray_color(&get_ray(x, y, &camera, &config), &tree, config.depth);
+                    color += ray_color(
+                        &get_ray(x, y, &camera, &config),
+                        &tree,
+                        config.depth,
+                        background.to_vec3(),
+                    );
                 }
 
                 Color::from_vec(color, config.samples as u64)

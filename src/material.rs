@@ -3,8 +3,8 @@ use std::{fmt::Debug, sync::Arc};
 
 pub trait Material: Send + Sync + Debug {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)>;
-    fn emitted(&self, _u: f64, _v: f64, _point: &Point3) -> Color {
-        Color::BLACK
+    fn emitted(&self, _u: f64, _v: f64, _point: &Point3) -> Vec3 {
+        Color::BLACK.to_vec3()
     }
 }
 
@@ -30,7 +30,7 @@ impl Lambertian<SolidColor> {
 impl<T: Texture> Material for Lambertian<T> {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let mut scatter_dir = rec.normal + Vec3::random_unit_sphere();
-        if scatter_dir.is_near(Vec3::ZERO) {
+        if scatter_dir.is_close(Vec3::ZERO) {
             scatter_dir = rec.normal;
         }
         let scattered = ray(rec.point, scatter_dir, r.time);
@@ -108,16 +108,17 @@ impl Material for Dielectric {
 #[derive(Debug, Clone)]
 pub struct DiffuseLight {
     emit: Arc<dyn Texture>,
+    power: f64
 }
 
 impl DiffuseLight {
-    pub fn new(emit: &Arc<dyn Texture>) -> Self {
-        Self { emit: emit.clone() }
+    pub fn new(emit: &Arc<dyn Texture>, power: f64) -> Self {
+        Self { emit: emit.clone(), power }
     }
 
-    pub fn from_color(c: Color) -> Self {
+    pub fn from_color(c: Color, power: f64) -> Self {
         Self {
-            emit: Arc::new(SolidColor::new(c)),
+            emit: Arc::new(SolidColor::new(c)), power
         }
     }
 }
@@ -127,7 +128,7 @@ impl Material for DiffuseLight {
         None
     }
 
-    fn emitted(&self, u: f64, v: f64, point: &Point3) -> Color {
-        self.emit.texel(u, v, point)
+    fn emitted(&self, u: f64, v: f64, point: &Point3) -> Vec3 {
+        self.emit.texel(u, v, point).to_vec3() * self.power
     }
 }

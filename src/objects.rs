@@ -49,7 +49,20 @@ impl AABB {
             tmax = t1[i].max(t2[i]).min(tmax);
         }
 
-        tmin <= tmax
+        tmin <= tmax && tmax >= 0.0
+    }
+
+    pub fn get_normal(&self, point: &Point3) -> Vec3 {
+        let p_min = (*point - self.min).is_close_scalar(0.0);
+        let p_max = (*point - self.max).is_close_scalar(0.0);
+        if p_min != Vec3::ZERO {
+            return -p_min;
+        }
+        if p_max != Vec3::ZERO {
+            return p_max;
+        }
+
+        Vec3::ZERO
     }
 
     pub fn surrounding_box(b0: &Self, b1: &Self) -> Self {
@@ -458,7 +471,6 @@ impl Hit for XYRect {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct XZRect {
     x: (f64, f64),
@@ -535,7 +547,7 @@ impl Hit for YZRect {
             return None;
         }
 
-        let normal = vec3(0.0, 1.0, 0.0);
+        let normal = vec3(1.0, 0.0, 0.0);
         let mut rec = HitRecord {
             point: r.at(t),
             normal,
@@ -554,6 +566,61 @@ impl Hit for YZRect {
             vec3(self.k - 0.0001, self.y.0, self.z.0),
             vec3(self.k + 0.0001, self.y.1, self.z.1),
         ))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Cube {
+    bbox: AABB,
+    mat: Arc<dyn Material>,
+}
+
+impl Cube {
+    pub fn new(p0: Vec3, p1: Vec3, mat: Arc<dyn Material>) -> Self {
+        Self {
+            bbox: AABB::new(p0, p1),
+            mat,
+        }
+    }
+
+    pub fn unit_cube(pos: Vec3, mat: Arc<dyn Material>) -> Self {
+        Self::new(pos, pos + Vec3::ONE, mat)
+    }
+}
+
+impl Hit for Cube {
+    fn hit(&self, r: &Ray, mut t_min: f64, mut t_max: f64) -> Option<HitRecord> {
+        let inv_d = 1.0 / r.dir;
+        let t1 = (self.bbox.min - r.origin) * inv_d;
+        let t2 = (self.bbox.max - r.origin) * inv_d;
+
+        for i in 0..3 {
+            t_min = t1[i].min(t2[i]).max(t_min);
+            t_max = t1[i].max(t2[i]).min(t_max);
+        }
+
+        if t_min >= t_max {
+            return None;
+        }
+
+        let point = r.at(t_min);
+        let normal = self.bbox.get_normal(&point);
+        let mut rec = HitRecord {
+            t: t_min,
+            mat: self.mat.clone(),
+            normal,
+            point,
+            u: 0.0,
+            v: 0.0,
+            front_face: false,
+        };
+        rec.set_face_normal(&r, normal);
+
+        return Some(rec);
+    }
+
+    fn bounding_box(&self, _: f64, _: f64) -> Option<AABB> {
+        Some(self.bbox)
     }
 }
 

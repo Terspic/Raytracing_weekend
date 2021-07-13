@@ -1,7 +1,7 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign};
 use super::{random, random_range};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vec3 {
     pub x: f64,
     pub y: f64,
@@ -97,10 +97,18 @@ impl Vec3 {
         r * vec3(theta.cos(), theta.sin(), 0.0)
     }
 
-    pub fn is_near(&self, v: Self) -> bool {
+    pub fn is_close(&self, v: Self) -> bool {
         (self.x - v.x).abs() < f64::EPSILON
             && (self.y - v.y).abs() < f64::EPSILON
             && (self.z - v.z).abs() < f64::EPSILON
+    }
+
+    pub fn is_close_scalar(&self, v: f64) -> Self {
+        Self {
+            x: if (self.x - v).abs() < f64::EPSILON { 1.0 } else { 0.0 },
+            y: if (self.y - v).abs() < f64::EPSILON { 1.0 } else { 0.0 },
+            z: if (self.z - v).abs() < f64::EPSILON { 1.0 } else { 0.0 },
+        }
     }
 
     pub fn is_nan(&self) -> bool {
