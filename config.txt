@@ -1,4 +1,4 @@
 width = 600
 height = 600
-samples = 10000
-depth = 15
+samples = 25
+depth = 8

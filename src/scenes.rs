@@ -23,9 +23,9 @@ pub fn two_spheres(a: f64) -> (HittableList, Camera, Color) {
     world.push(Arc::new(Sphere::new(
         vec3(1.0, 0.0, 0.0),
         1.0,
-        Arc::new(Lambertian::from_color(Color::GREEN)),
+        Arc::new(Lambertian::from_color(Color::WHITE)),
     )));
-    world.push(Arc::new(XZRect::new(
+     world.push(Arc::new(XZRect::new(
         (-1.0, 1.0),
         (-1.0, 1.0),
         2.0,
@@ -259,6 +259,7 @@ pub fn cornell_box(a: f64) -> (HittableList, Camera, Color) {
     let white = Arc::new(Lambertian::from_color(Color::new(182, 182, 182, 255)));
     let green = Arc::new(Lambertian::from_color(Color::new(31, 115, 12, 38)));
     let light = Arc::new(DiffuseLight::from_color(Color::WHITE, 10.0));
+    //let glass = Arc::new(Dielectric::new(1.5));
 
     // walls
     world.push(Arc::new(YZRect::new((0.0, 555.0), (0.0, 555.0), 555.0, green.clone())));
@@ -271,6 +272,7 @@ pub fn cornell_box(a: f64) -> (HittableList, Camera, Color) {
     world.push(Arc::new(XYRect::new((0.0, 555.0), (0.0, 555.0), 555.0, white.clone())));
 
     // boxes
+    //world.push(Arc::new(Sphere::new(vec3(212.0, 82.0, 147.0), 82.0, glass.clone())));
     world.push(Arc::new(Cube::new(vec3(130.0, 0.0, 65.0), vec3(295.0, 165.0, 230.0), white.clone())));
     world.push(Arc::new(Cube::new(vec3(265.0, 0.0, 295.0), vec3(430.0, 330.0, 460.0), white.clone())));
 
