@@ -108,17 +108,21 @@ impl Material for Dielectric {
 #[derive(Debug, Clone)]
 pub struct DiffuseLight {
     emit: Arc<dyn Texture>,
-    power: f64
+    power: f64,
 }
 
 impl DiffuseLight {
     pub fn new(emit: &Arc<dyn Texture>, power: f64) -> Self {
-        Self { emit: emit.clone(), power }
+        Self {
+            emit: emit.clone(),
+            power,
+        }
     }
 
     pub fn from_color(c: Color, power: f64) -> Self {
         Self {
-            emit: Arc::new(SolidColor::new(c)), power
+            emit: Arc::new(SolidColor::new(c)),
+            power,
         }
     }
 }
